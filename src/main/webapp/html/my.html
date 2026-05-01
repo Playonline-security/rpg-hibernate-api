@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>RPG Admin Panel</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link href="/css/my.css" rel="stylesheet">
+</head>
+<body onload="showList(0)">
+
+<header>
+    <h1>RPG Admin Panel</h1>
+</header>
+
+<main class="main-layout">
+    <section class="content-left">
+        <div class="table-header">
+            <h2>Accounts List</h2>
+            <div class="page-size-control">
+                <label for="count_1">Count per page:</label>
+                <select name="count_1" id="count_1" onchange="showList(0)">
+                    <option value="3">3</option>
+                    <option value="5" selected>5</option>
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                </select>
+            </div>
+        </div>
+
+        <table class="table_all" id="table_1">
+            <thead>
+            <tr>
+                <th>#</th>
+                <th>Name</th>
+                <th>Title</th>
+                <th>Race</th>
+                <th>Profession</th>
+                <th>Level</th>
+                <th>Birthday</th>
+                <th>Banned</th>
+                <th>Edit</th>
+                <th>Delete</th>
+            </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+
+        <div id="paging_buttons" class="pagination">
+            <span>Pages:</span>
+        </div>
+    </section>
+
+    <aside class="content-right">
+        <div class="create-card">
+            <h2>Create New Account</h2>
+            <div class="create">
+                <div class="create__group">
+                    <label for="input_name_new">Name:</label>
+                    <input class="create__input" type="text" id="input_name_new" placeholder="Character name" maxlength="12">
+                </div>
+                <div class="create__group">
+                    <label for="input_title_new">Title:</label>
+                    <input class="create__input" type="text" id="input_title_new" placeholder="Title/Honorific" maxlength="30">
+                </div>
+                <div class="create__group">
+                    <label for="input_race_new">Race:</label>
+                    <select class="create__select" id="input_race_new">
+                        <option value='HUMAN'>HUMAN</option>
+                        <option value='DWARF'>DWARF</option>
+                        <option value='ELF'>ELF</option>
+                        <option value='GIANT'>GIANT</option>
+                        <option value='ORC'>ORC</option>
+                        <option value='TROLL'>TROLL</option>
+                        <option value='HOBBIT'>HOBBIT</option>
+                    </select>
+                </div>
+                <div class="create__group">
+                    <label for="input_profession_new">Profession:</label>
+                    <select class="create__select" id="input_profession_new">
+                        <option value='WARRIOR'>WARRIOR</option>
+                        <option value='ROGUE'>ROGUE</option>
+                        <option value='SORCERER'>SORCERER</option>
+                        <option value='CLERIC'>CLERIC</option>
+                        <option value='PALADIN'>PALADIN</option>
+                        <option value='NAZGUL'>NAZGUL</option>
+                        <option value='WARLOCK'>WARLOCK</option>
+                        <option value='DRUID'>DRUID</option>
+                    </select>
+                </div>
+                <div class="create__group">
+                    <label for="input_level_new">Level:</label>
+                    <input class="create__input" type="number" id="input_level_new" min="0" max="100" value="0">
+                </div>
+                <div class="create__group">
+                    <label for="input_birthday_new">Birthday:</label>
+                    <input class="create__input" type="date" id="input_birthday_new" min="2000-01-01" max="3000-12-31">
+                </div>
+                <div class="create__group">
+                    <label for="input_banned_new">Status:</label>
+                    <select class="create__select" id="input_banned_new">
+                        <option value='false'>Active</option>
+                        <option value='true'>Banned</option>
+                    </select>
+                </div>
+                <button class="btn-save" type="submit" onclick='createAcc()'>
+                    Create Character
+                </button>
+            </div>
+        </div>
+    </aside>
+</main>
+
+<script>
+    // Se mantienen tus funciones originales exactamente como estaban
+    function showList(page_number) {
+        let url = "/rest/players?";
+        let countPerPage = $("#count_1").val() || 3;
+        url = url.concat("pageSize=").concat(countPerPage);
+
+        if (page_number !== null) {
+            url = url.concat("&pageNumber=").concat(page_number);
+        }
+
+        $.get(url, function (response) {
+            // Eliminar solo filas con datos, no el header
+            $("#table_1 tbody tr").remove();
+            // Si no usas tbody, esta línea original sigue funcionando:
+            $("tr:has(td)").remove();
+
+            $.each(response, function (i, item) {
+                $('<tr>').html("<td>"
+                    + item.id + "</td><td>"
+                    + item.name + "</td><td>"
+                    + item.title + "</td><td>"
+                    + item.race + "</td><td>"
+                    + item.profession + "</td><td>"
+                    + item.level + "</td><td>"
+                    + new Date(item.birthday).toLocaleDateString() + "</td><td>"
+                    + item.banned + "</td><td>"
+                    + "<button id='button_edit_" + item.id + "' onclick='editAcc(" + item.id + ")'>"
+                    + "<img src='/img/edit.png' class='img_edit'>"
+                    + "</button>" + "</td><td>"
+                    + "<button id='button_delete_" + item.id + "' onclick='deleteAcc(" + item.id + ")'>"
+                    + "<img src='/img/delete.png' class='img_delete'>"
+                    + "</button>" + "</td>")
+                    .appendTo('#table_1');
+            });
+        });
+
+        let totalCount = getTotalCount();
+        let pagesCount = Math.ceil(totalCount / countPerPage);
+
+        $("button.pgn-bnt-styled").remove();
+        for (let i = 0; i < pagesCount; i++) {
+            let btn = $("<button>" + (i + 1) + "</button>")
+                .attr('id', "paging_button_" + i)
+                .attr('onclick', "showList(" + i + ")")
+                .addClass('pgn-bnt-styled');
+            $('#paging_buttons').append(btn);
+        }
+
+        if (page_number !== null) {
+            $("#paging_button_" + page_number).css("color", "red").css("font-weight", "bold");
+        } else {
+            $("#paging_button_0").css("color", "red").css("font-weight", "bold");
+        }
+    }
+
+    function getTotalCount() {
+        let value = 1;
+        $.ajax({
+            url: "/rest/players/count",
+            async: false,
+            success: function (result) { value = result; }
+        });
+        return parseInt(value);
+    }
+
+    function deleteAcc(id) {
+        $.ajax({
+            url: "/rest/players/" + id,
+            type: 'DELETE',
+            success: function () { showList(getCurrentPage()); }
+        });
+    }
+
+    function editAcc(id) {
+        let identifier_edit = "#button_edit_" + id;
+        let identifier_delete = "#button_delete_" + id;
+
+        $(identifier_delete).remove();
+
+        let save_image_tag = "<img src='/img/save.png' class='img_save'>";
+        $(identifier_edit).html(save_image_tag);
+        $(identifier_edit).attr("onclick", "saveAcc(" + id + ")");
+
+        // Esta es la parte crítica: mantiene la lógica de navegar por el DOM
+        let current_tr_element = $(identifier_edit).parent().parent();
+        let children = current_tr_element.children();
+
+        let td_name = children[1];
+        td_name.innerHTML = "<input id='input_name_" + id + "' type='text' value='" + td_name.innerHTML + "'>";
+
+        let td_title = children[2];
+        td_title.innerHTML = "<input id='input_title_" + id + "' type='text' value='" + td_title.innerHTML + "'>";
+
+        let td_race = children[3];
+        let race_current_value = td_race.innerHTML;
+        td_race.innerHTML = getDropdownRaceHtml(id);
+        $("#select_race_" + id).val(race_current_value);
+
+        let td_profession = children[4];
+        let profession_current_value = td_profession.innerHTML;
+        td_profession.innerHTML = getDropdownProfessionHtml(id);
+        $("#select_profession_" + id).val(profession_current_value);
+
+        let td_banned = children[7];
+        let banned_current_value = td_banned.innerHTML;
+        td_banned.innerHTML = getDropdownBannedHtml(id);
+        $("#select_banned_" + id).val(banned_current_value);
+    }
+
+    function saveAcc(id) {
+        let data = {
+            "name": $("#input_name_" + id).val(),
+            "title": $("#input_title_" + id).val(),
+            "race": $("#select_race_" + id).val(),
+            "profession": $("#select_profession_" + id).val(),
+            "banned": $("#select_banned_" + id).val()
+        };
+
+        $.ajax({
+            url: "/rest/players/" + id,
+            type: 'POST',
+            dataType: 'json',
+            contentType: 'application/json;charset=UTF-8',
+            async: false,
+            data: JSON.stringify(data),
+            success: function () { showList(getCurrentPage()); }
+        });
+    }
+
+    function createAcc() {
+        let value_birthday = $("#input_birthday_new").val();
+        let datetime = new Date(value_birthday).getTime();
+
+        let data = {
+            "name": $("#input_name_new").val(),
+            "title": $("#input_title_new").val(),
+            "race": $("#input_race_new").val(),
+            "profession": $("#input_profession_new").val(),
+            "level": $("#input_level_new").val(),
+            "birthday": datetime,
+            "banned": $("#input_banned_new").val()
+        };
+
+        $.ajax({
+            url: "/rest/players",
+            type: 'POST',
+            dataType: 'json',
+            contentType: 'application/json;charset=UTF-8',
+            async: false,
+            data: JSON.stringify(data),
+            success: function () {
+                $(".create__input").val("");
+                showList(getCurrentPage());
+            }
+        });
+        return false;
+    }
+
+    function getCurrentPage() {
+        let current_page = 1;
+        $(".pgn-bnt-styled").each(function () {
+            if ($(this).css("color") === "rgb(255, 0, 0)") {
+                current_page = $(this).text();
+            }
+        });
+        return parseInt(current_page) - 1;
+    }
+
+    function getDropdownRaceHtml(id) {
+        return "<select id='select_race_" + id + "'>"
+            + "<option value='HUMAN'>HUMAN</option><option value='DWARF'>DWARF</option>"
+            + "<option value='ELF'>ELF</option><option value='GIANT'>GIANT</option>"
+            + "<option value='ORC'>ORC</option><option value='TROLL'>TROLL</option>"
+            + "<option value='HOBBIT'>HOBBIT</option></select>";
+    }
+
+    function getDropdownProfessionHtml(id) {
+        return "<select id='select_profession_" + id + "'>"
+            + "<option value='WARRIOR'>WARRIOR</option><option value='ROGUE'>ROGUE</option>"
+            + "<option value='SORCERER'>SORCERER</option><option value='CLERIC'>CLERIC</option>"
+            + "<option value='PALADIN'>PALADIN</option><option value='NAZGUL'>NAZGUL</option>"
+            + "<option value='WARLOCK'>WARLOCK</option><option value='DRUID'>DRUID</option></select>";
+    }
+
+    function getDropdownBannedHtml(id) {
+        return "<select id='select_banned_" + id + "'>"
+            + "<option value='false'>false</option><option value='true'>true</option></select>";
+    }
+</script>
+</body>
+</html>
